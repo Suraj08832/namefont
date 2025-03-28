@@ -11,4 +11,13 @@ services:
         value: "3.9.0"
     healthCheckPath: /health
     autoDeploy: true
-    plan: free 
+    plan: free
+    buildFilter:
+      paths:
+        - "*.py"
+        - "requirements.txt"
+        - "runtime.txt"
+        - "render.yaml"
+        - "styles/**"
+        - "handlers/**"
+        - "utils/**" 

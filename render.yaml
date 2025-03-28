@@ -3,11 +3,16 @@ services:
     name: fontbot
     runtime: python3
     pythonVersion: 3.9
-    buildCommand: pip install -r requirements.txt
-    startCommand: python3 -u bot.py
+    buildCommand: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+      python -m pip install gunicorn
+    startCommand: gunicorn bot:app --bind 0.0.0.0:$PORT --worker-class aiohttp.worker.GunicornWebWorker
     envVars:
       - key: BOT_TOKEN
         sync: false
+      - key: PORT
+        value: 8080
     plan: free
     healthCheckPath: /health
     autoDeploy: true 

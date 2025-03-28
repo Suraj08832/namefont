@@ -1,9 +1,10 @@
 services:
   - type: web
     name: fontbot
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python3 -u bot.py
     envVars:
       - key: BOT_TOKEN
-        sync: false 
+        sync: false
+    plan: free 

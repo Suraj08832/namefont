@@ -1,17 +1,13 @@
 import os
-import logging
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from styles.font_styles import generate_fancy_name, generate_bio_style, apply_style, add_decorations
+from utils.helpers import setup_logging, safe_execute, create_inline_keyboard, validate_text
 from aiohttp import web
-import asyncio
 
 # Setup logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+logger = setup_logging()
 
 # Bot token
 TOKEN = os.getenv('BOT_TOKEN')
@@ -22,6 +18,7 @@ if not TOKEN:
 async def health_check(request):
     return web.Response(text="OK")
 
+@safe_execute
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_message = """
 🌟 Welcome to the Fancy Font Bot! 🌟
@@ -42,6 +39,7 @@ Let's make your text beautiful! 😊
     """
     await update.message.reply_text(welcome_message)
 
+@safe_execute
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 📝 Available Commands:
@@ -64,6 +62,7 @@ Need more help? Just ask! 😊
     """
     await update.message.reply_text(help_text)
 
+@safe_execute
 async def fonts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sample_text = "Sample Text"
     styles = generate_fancy_name(sample_text)
@@ -74,6 +73,7 @@ async def fonts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(message)
 
+@safe_execute
 async def name_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
@@ -83,36 +83,25 @@ async def name_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = ' '.join(context.args)
-    if len(text) > 100:
+    if not validate_text(text):
         await update.message.reply_text(
             "Text too long! Please keep it under 100 characters."
         )
         return
     
-    try:
-        styles = generate_fancy_name(text)
-        keyboard = []
-        
-        for style in styles:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"Copy {style['style'].title()}", 
-                    callback_data=f"copy:{style['text']}"
-                )
-            ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Choose a style to copy:",
-            reply_markup=reply_markup
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in name_command: {str(e)}")
-        await update.message.reply_text(
-            "Sorry, there was an error processing your request. Please try again!"
-        )
+    styles = generate_fancy_name(text)
+    buttons = [
+        {'text': f"Copy {style['style'].title()}", 'callback_data': f"copy:{style['text']}"}
+        for style in styles
+    ]
+    
+    reply_markup = create_inline_keyboard(buttons)
+    await update.message.reply_text(
+        "Choose a style to copy:",
+        reply_markup=reply_markup
+    )
 
+@safe_execute
 async def bio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
@@ -122,55 +111,35 @@ async def bio_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = ' '.join(context.args)
-    if len(text) > 100:
+    if not validate_text(text):
         await update.message.reply_text(
             "Text too long! Please keep it under 100 characters."
         )
         return
     
-    try:
-        styles = generate_bio_style(text)
-        keyboard = []
-        
-        for i, style in enumerate(styles):
-            if i % 2 == 0:
-                keyboard.append([])
-            keyboard[-1].append(
-                InlineKeyboardButton(
-                    f"Copy Style {i+1}", 
-                    callback_data=f"copy:{style['text']}"
-                )
-            )
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Choose a bio style to copy:",
-            reply_markup=reply_markup
-        )
-        
-    except Exception as e:
-        logger.error(f"Error in bio_command: {str(e)}")
-        await update.message.reply_text(
-            "Sorry, there was an error processing your request. Please try again!"
-        )
+    styles = generate_bio_style(text)
+    buttons = [
+        {'text': f"Copy Style {i+1}", 'callback_data': f"copy:{style['text']}"}
+        for i, style in enumerate(styles)
+    ]
+    
+    reply_markup = create_inline_keyboard(buttons)
+    await update.message.reply_text(
+        "Choose a bio style to copy:",
+        reply_markup=reply_markup
+    )
 
+@safe_execute
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    try:
-        action, data = query.data.split(':', 1)
-        
-        if action == "copy":
-            await query.message.reply_text(
-                f"Here's your styled text:\n\n{data}\n\n"
-                "✨ Just tap and hold to copy! ✨"
-            )
-        
-    except Exception as e:
-        logger.error(f"Error in button_callback: {str(e)}")
+    action, data = query.data.split(':', 1)
+    
+    if action == "copy":
         await query.message.reply_text(
-            "Sorry, there was an error processing your request. Please try again!"
+            f"Here's your styled text:\n\n{data}\n\n"
+            "✨ Just tap and hold to copy! ✨"
         )
 
 def main():

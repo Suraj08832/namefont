@@ -5,6 +5,7 @@ from styles.font_styles import generate_fancy_name, generate_example_styles
 from handlers.button_handler import button_callback
 from utils.helpers import setup_logging, safe_execute, create_inline_keyboard, validate_text
 from aiohttp import web
+import asyncio
 
 # Setup logging
 logger = setup_logging()
@@ -128,9 +129,24 @@ def main():
     bot_app.add_handler(CommandHandler("bio", bio_command))
     bot_app.add_handler(CallbackQueryHandler(button_callback))
     
+    # Get port from environment variable or use default
+    port = int(os.getenv('PORT', 8080))
+    
     # Start both web and bot
-    web.run_app(app, port=int(os.getenv('PORT', 8080)))
-    bot_app.run_polling()
+    async def start_services():
+        # Start web server
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', port)
+        await site.start()
+        
+        # Start bot
+        await bot_app.initialize()
+        await bot_app.start()
+        await bot_app.run_polling()
+    
+    # Run everything
+    asyncio.run(start_services())
 
 if __name__ == '__main__':
     main() 

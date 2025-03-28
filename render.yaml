@@ -6,13 +6,20 @@ services:
     buildCommand: |
       python -m pip install --upgrade pip
       pip install -r requirements.txt
-      python -m pip install gunicorn
-    startCommand: gunicorn bot:app --bind 0.0.0.0:$PORT --worker-class aiohttp.worker.GunicornWebWorker
+      pip install gunicorn
+      mkdir -p logs
+      touch logs/bot.log
+    startCommand: |
+      python -m bot
     envVars:
       - key: BOT_TOKEN
         sync: false
+      - key: PYTHONUNBUFFERED
+        value: true
       - key: PORT
         value: 8080
+      - key: ENVIRONMENT
+        value: production
     plan: free
     healthCheckPath: /health
     autoDeploy: true 
